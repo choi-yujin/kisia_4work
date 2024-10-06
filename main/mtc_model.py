@@ -1,12 +1,18 @@
 import pickle
+
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import Dataset
 from typing import Tuple, List, Any, Dict, Union
+
+import pickle
 import random
 from typing import Any, List, Union
-
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 from scapy.all import sniff
 from scapy.compat import raw
 from scapy.layers.dns import DNS
@@ -17,15 +23,11 @@ from scipy import sparse
 from sklearn.model_selection import train_test_split
 import glob
 
-from flask import Flask, jsonify, render_template, request
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torcheval.metrics import MulticlassPrecision, MulticlassRecall, MulticlassAccuracy, MulticlassF1Score, \
+    MulticlassConfusionMatrix
 from tqdm import tqdm
-from collections import Counter
-import os
-
-app = Flask(__name__)
-
+from typing import List
 
 PREFIX_TO_TRAFFIC_ID = {
     'chat': 0,
@@ -86,7 +88,7 @@ def id_to_one_hot_tensor(
     if isinstance(id_value, int):
         id_value = torch.tensor(id_value)
 
-    one_hot_tensor = torch.nn.functional.one_hot(id_value, num_classes=num_classes  )
+    one_hot_tensor = torch.nn.functional.one_hot(id_value, num_classes=num_classes)
     return one_hot_tensor.to(torch.float32)
 
 
@@ -125,14 +127,7 @@ def get_dataset(data_rows: List[Dict[str, Any]]) -> Dataset:
     ds = CustomListDataset(data_rows)
     return ds
 
-
-
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-
+print('dataset code done')
 
 class CustomEmbedding(nn.Module):
     """Embedding layer"""
@@ -257,8 +252,8 @@ class MTC(nn.Module):
             trans_h: int = 5,
             trans_d1: int = 1024
     ):
-        """ Initialize MTC model with expected inputs with shape(B, C, L). `B` is batch size, `C` is channel and
-         `L` is sequence length.
+        """ Initialize MTC model with expected inputs with shape(B, C, L). B is batch size, C is channel and
+         L is sequence length.
 
         Args:
             seq_len: Sequence length.
@@ -342,8 +337,7 @@ class MTC(nn.Module):
 
         return output1, output2, output3
 
-
-
+print('train code done')
 
 def reduce_tcp(
         packet: Packet,
@@ -433,7 +427,7 @@ def filter_packet(pkt: Packet):
         pkt: Scapy packet.
 
     Returns:
-        Scapy packet if pass all filtering rules. Or `None`.
+        Scapy packet if pass all filtering rules. Or None.
     """
     # eliminate Ethernet header with the physical layer information
     if Ether in pkt:
@@ -515,7 +509,7 @@ def filter_packet(pkt: Packet):
 
 
 def preprocess_data(
-        pcap_files:str,
+        pcap_files: List[str],
         limited_count: int = None
 ):
     """ Perform data preprocessing
@@ -529,40 +523,45 @@ def preprocess_data(
     """
     data_rows = []
 
-   
-    print(f'Load file: {pcap_files}')
+    for pcap_f_name in pcap_files:
+        print(f'Load file: {pcap_f_name}')
 
-    pkt_arrays = []
+        pkt_arrays = []
 
-    # Callback function for sniffing
-    def method_filter(pkt):
-        # Eliminate Ethernet header with the physical layer information
-        pkt = filter_packet(pkt)
-        # A valid packet would be returned
-        if pkt is not None:
-            # Convert to sparse matrix
-            ary = packet_to_sparse_array(pkt)
-            pkt_arrays.append(ary)
+        # Callback function for sniffing
+        def method_filter(pkt):
+            # Eliminate Ethernet header with the physical layer information
+            pkt = filter_packet(pkt)
+            # A valid packet would be returned
+            if pkt is not None:
+                # Convert to sparse matrix
+                ary = packet_to_sparse_array(pkt)
+                pkt_arrays.append(ary)
+                print(f'packet processed: {pkt}') #유효 패킷
+            # else:
+            #      print(f'packet filtered out: {pkt}') #필터링 처리된 패킷
 
-    # Limit the number of data for testing
-    if limited_count:
-        sniff(offline=pcap_files, prn=method_filter, store=0, count=limited_count)
-    else:
-        sniff(offline=pcap_files, prn=method_filter, store=0)
+        print(f'sniff from: {pcap_f_name}')
 
-    # Concat feature and labels
-    for array in pkt_arrays:
-        #무작위 값
-        row = {
-            "app_label": 0,
-            "traffic_label": 0,
-            "aux_label": 0,
-            "feature": array
-        }
-        data_rows.append(row)
+        # Limit the number of data for testing
+        if limited_count:
+            sniff(offline=pcap_f_name, prn=method_filter, store=0, count=limited_count)
+        else:
+            sniff(offline=pcap_f_name, prn=method_filter, store=0)
 
-    # Release memory
-    del pkt_arrays
+        # Concat feature and labels
+        for array in pkt_arrays:
+            #무작위 값
+            row = {
+                "app_label": 0,
+                "traffic_label": 0,
+                "aux_label": 0,
+                "feature": array
+            }
+            data_rows.append(row)
+
+        # Release memory
+        del pkt_arrays
 
     print(f'Save data with {len(data_rows)} rows')
 
@@ -570,20 +569,33 @@ def preprocess_data(
     with open('data/test_data_rows.pkl', 'wb') as f:
         pickle.dump(data_rows, f)
 
+import os
+import time
+
+# def model_pcap(pcap_dir):
+#     processed_files=set()
+
+#     while True: #무한 루프로 pcap 계속 처리하기 위해
+        
+#         pcap_files = glob.glob(pcap_dir)  
+#         pcap_files.sort(key=os.path.getctime) #생성순으로 정렬해서 중복 생기지 않게 하려고
+
+#         for pcap_file in pcap_files:
+#             if pcap_file not in processed_files: #pcap_file processed_files에 있지 않을 때
+#                 print(f'pcap file: {pcap_file}')
+#                 preprocess_data(pcap_file)
+#                 processed_files.add(pcap_file) #전처리 완료된 패킷은 processed_files에 추가
+
+#         print("before time_sleep")
+#         time.sleep(10)
     
+# if __name__ == "__main__":
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-from torch.utils.data import DataLoader
-from torcheval.metrics import MulticlassPrecision, MulticlassRecall, MulticlassAccuracy, MulticlassF1Score, \
-    MulticlassConfusionMatrix
-from tqdm import tqdm
-from typing import List
+#     pcap_dir='/*.pcap'
+#     model_pcap(pcap_dir)
+    
+    
+    
 
 def test_op(
         model: nn.Module,
@@ -657,67 +669,75 @@ def test_op(
     return task_metrics, final_predicted_labels  # 최종 예측 레이블 반환
 
 
+def testing():
+    testing_models = [MTC]  # MTC 모델만 테스트하도록 설정
+    model_metrics = dict()
+    prediction_results={}
 
-def predict(selected_date):
-    pcap_folder = 'C:/Users/김재민/Desktop/mtc_project/pcaps'
-    pcap_files = glob.glob(f'{pcap_folder}/{selected_date}*.pcap')  # 해당 날짜에 맞는 모든 pcap 파일을 가져옴
-    traffic_labels = []
-    app_labels = []
+    for module in testing_models:
+        m = module()
+        print(f'Test {m.__class__.__name__} model...')
+        m.load_state_dict(torch.load('MTC_model_1.pt',weights_only=True)) #weights_only: 보안 문제 경고 해결
+        metrics, final_predicted_labels = test_op(m)
+        model_metrics[m.__class__.__name__] = metrics
 
-    model = MTC()
-    model.load_state_dict(torch.load('C:\\Users\\김재민\\Desktop\\mtc_project\\MTC_model (1).pt'))
+        # 최종 예측된 레이블 출력
+        print(f'Final predicted label for {m.__class__.__name__}:')
+        print(f'Traffic ID: {final_predicted_labels[1]}')
+        print(f'APP ID: {final_predicted_labels[2]}')
+        print(f'AUX ID  : {final_predicted_labels[3]}')
 
-    for pcap_file in pcap_files:  # 여러 pcap 파일을 처리
-        preprocess_data(pcap_file)
-        _, final_predicted_labels = test_op(model)
+        # from flask_socketio import SocketIO
+        import requests
+        import json
 
-        # 예측 결과 저장
-        traffic_labels.append(final_predicted_labels[1])
-        app_labels.append(final_predicted_labels[2])
+        # 반대로 매핑 >> key 받아오고, flask 출력했을 때 0,1,2 대신 chat,voip 등으로 표시
+        TRAFFIC_ID_TO_PREFIX = {v: k for k, v in PREFIX_TO_TRAFFIC_ID.items()}
+        APP_ID_TO_PREFIX = {v: k for k, v in PREFIX_TO_APP_ID.items()}
+        AUX_ID_TO_PREFIX = {v: k for k, v in AUX_ID.items()}
 
-        # 중간 파일 제거
-        file_path = 'C:/Users/김재민/Desktop/mtc_project/data/test_data_rows.pkl'
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        prediction_results['Traffic ID'] = TRAFFIC_ID_TO_PREFIX.get(final_predicted_labels[1])
+        prediction_results['APP ID'] = APP_ID_TO_PREFIX.get(final_predicted_labels[2])
+        prediction_results['AUX ID'] = AUX_ID_TO_PREFIX.get(final_predicted_labels[3])
+        # print(f'final_labels: {final_predicted_labels}')
+        print(f'prediction results: {prediction_results}')
 
-    # 예측 결과 비율 계산
-    traffic_count = Counter(traffic_labels)
-    app_count = Counter(app_labels)
+         # 유효성 검사
+        if None in prediction_results.values():
+            raise ValueError("ID:None")
+        
+        response=requests.post('http://192.168.219.109:5000/receive_prediction',json=prediction_results)
+        print(f'-Status code: {response.status_code}')
 
-    return traffic_count, app_count
-
-@app.route('/predict', methods=['GET'])
-def send_pie():
-    selected_date = request.args.get('date')  # 클라이언트에서 전송한 날짜를 받음
-    if not selected_date:
-        return jsonify({'error': '날짜를 선택해주세요.'}), 400
     
-    traffic_count, app_count = predict(selected_date)
+def model_pcap(pcap_dir):
+    processed_files = set()
 
-    total_traffic = sum(traffic_count.values())
-    total_app = sum(app_count.values())
+    while True:  # 무한 루프로 PCAP 계속 처리하기 위해
+        
+        pcap_files = glob.glob(pcap_dir)
+        pcap_files.sort(key=os.path.getctime)  # 생성순으로 정렬
 
-    traffic_ratios = {
-        'CHAT': traffic_count[0] / total_traffic if total_traffic > 0 else 0,
-        'VOIP': traffic_count[1] / total_traffic if total_traffic > 0 else 0,
-        'STREAMING': traffic_count[2] / total_traffic if total_traffic > 0 else 0,
-    }
+        # 새로 발견된 PCAP 파일에 대해서만 처리
+        new_files_found = False
+        for pcap_file in pcap_files:
+            if pcap_file not in processed_files:  # PCAP 파일이 processed_files에 없을 때
+                print(f'Processing PCAP file: {pcap_file}')
 
-    app_ratios = {
-        'facebook': app_count[0] / total_app if total_app > 0 else 0,
-        'discord': app_count[1] / total_app if total_app > 0 else 0,
-        'skype': app_count[2] / total_app if total_app > 0 else 0,
-        'line': app_count[3] / total_app if total_app > 0 else 0,
-        'youtube': app_count[4] / total_app if total_app > 0 else 0,
-    }
+                time.sleep(180)  # 대기
 
-    return jsonify({
-        'traffic_ratios': traffic_ratios,
-        'app_ratios': app_ratios
-    })
+                preprocess_data([pcap_file])  # PCAP 파일 전처리
+                processed_files.add(pcap_file)  # 처리 완료된 파일 추가
+                new_files_found = True  # 새 파일이 발견되었음을 표시
 
-@app.route('/')
-def index():
-    return render_template('index2.html')
+                # PCAP 파일 처리 후 테스트 수행
+                testing()
+
+        if not new_files_found:
+            print("No new PCAP files found...")
+
+        time.sleep(10) #잠깐 대기 >> pcap 생성이 완벽하게 180초가 아닐 때가 있음
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    pcap_dir = '*.pcap'  # PCAP 파일 경로 설정
+    model_pcap(pcap_dir)

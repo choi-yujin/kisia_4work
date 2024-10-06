@@ -1,0 +1,209 @@
+<!-- templates/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Traffic Analysis</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            display: flex;
+            justify-content: space-between;
+            max-height: 500px;
+        }
+        #traffic-log {
+            width: 45%;
+        }
+        #chart {
+            width: 45%;
+        }
+        #packet-list-container {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        .result-container {
+            width: 45%;
+            border: 1px solid #ddd;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        #result-list {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Network Traffic Analysis</h1>
+
+<div class="container">
+    <div id="traffic-log">
+        <h3>Real-time Network Traffic</h3>
+        <div id="packet-list-container">
+            <ul id="packet-list"></ul>
+        </div>
+    </div>
+
+    <div id="chart">
+        <h3>Client Traffic Behavior Distribution</h3>
+        <canvas id="trafficChart"></canvas>
+        <canvas id="appChart" style="margin-top: 20px;"></canvas>
+    </div>
+</div>
+
+<h3>MTC model result</h3>
+<div class="result-container">
+    <div id="result-list">
+        <ul id="prediction-list"></ul> 
+    </div>
+</div>
+
+<script>
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
+    var autoScrollEnabled = true;
+
+    function smoothScrollTo(container, targetScrollTop, duration) {
+        var startScrollTop = container.scrollTop;
+        var distance = targetScrollTop - startScrollTop;
+        var startTime = null;
+
+        function scrollStep(timestamp) {
+            if (!startTime) startTime = timestamp;
+            var progress = timestamp - startTime;
+            var percent = Math.min(progress / duration, 1);
+            
+            container.scrollTop = startScrollTop + distance * percent;
+
+            if (percent < 1) {
+                window.requestAnimationFrame(scrollStep);
+            }
+        }
+
+        window.requestAnimationFrame(scrollStep);
+    }
+
+    socket.on('new_packet', function(packet) {
+        var packetList = document.getElementById('packet-list');
+        var listItem = document.createElement('li');
+        listItem.innerHTML = 'Src: ' + packet.src_ip + ' -> Dst: ' + packet.dst_ip + '<br> ' + packet.summary + '<br>';
+        packetList.appendChild(listItem);
+
+        setTimeout(function() {
+            if (autoScrollEnabled) {
+                var packetListContainer = document.getElementById('packet-list-container');
+                smoothScrollTo(packetListContainer, packetListContainer.scrollHeight, 500);
+            }
+        }, 100);
+    });
+
+    socket.on('new_prediction', function(data) {
+        var predictionList = document.getElementById('prediction-list');
+        var listItem = document.createElement('li');
+        listItem.innerHTML = 'Traffic ID: ' + data['Traffic ID'] + '<br>' +
+                             'APP ID: ' + data['APP ID'] + '<br>' +
+                             'AUX ID: ' + data['AUX ID'];
+        predictionList.appendChild(listItem);
+    });
+
+    flatpickr(".datetime-picker", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+    });
+
+    // 차트 초기화
+    const trafficData = {
+        labels: ['CHAT', 'VOIP', 'STREAMING'],
+        datasets: [{
+            data: [0, 0, 0], // 초기값
+            backgroundColor: ['#2e8b57', '#66cdaa', '#8fbc8f']
+        }]
+    };
+
+    const appData = {
+        labels: ['facebook', 'discord', 'skype', 'line', 'youtube'],
+        datasets: [{
+            data: [0, 0, 0, 0, 0], // 초기값
+            backgroundColor: ['#3cb371', '#2e8b57', '#006400', '#8fbc8f', '#66cdaa']
+        }]
+    };
+
+    const ctxTraffic = document.getElementById('trafficChart').getContext('2d');
+    const trafficChart = new Chart(ctxTraffic, {
+        type: 'pie',
+        data: trafficData,
+        options: {
+            responsive: true
+        }
+    });
+
+    const ctxApp = document.getElementById('appChart').getContext('2d');
+    const appChart = new Chart(ctxApp, {
+        type: 'pie',
+        data: appData,
+        options: {
+            responsive: true
+        }
+    });
+
+    function updateCharts() {
+        fetch('/predict_pie')
+            .then(response => response.json())
+            .then(data => {
+                // 트래픽 차트 업데이트
+                trafficChart.data.datasets[0].data = [
+                    data.traffic_ratios.CHAT,
+                    data.traffic_ratios.VOIP,
+                    data.traffic_ratios.STREAMING
+                ];
+                trafficChart.update();
+
+                // 애플리케이션 차트 업데이트
+                appChart.data.datasets[0].data = [
+                    data.app_ratios.facebook,
+                    data.app_ratios.discord,
+                    data.app_ratios.skype,
+                    data.app_ratios.line,
+                    data.app_ratios.youtube
+                ];
+                appChart.update();
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+            });
+    }
+
+    // 페이지 로드 시 차트 업데이트
+    updateCharts();
+
+    document.getElementById('analyze-btn').addEventListener('click', () => {
+        const startTime = document.getElementById('start-time').value;
+        const endTime = document.getElementById('end-time').value;
+
+        fetch(`/analyze-traffic?start=${startTime}&end=${endTime}`)
+            .then(response => response.json())
+            .then(result => {
+                document.getElementById('analysis-result').textContent = `F1 Score: ${result.f1_score}, Accuracy: ${result.accuracy}`;
+            })
+            .catch(error => {
+                document.getElementById('analysis-result').textContent = 'Error analyzing data';
+                console.error(error);
+            });
+    });
+</script>
+
+</body>
+</html>
