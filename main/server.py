@@ -44,6 +44,56 @@ def receive_prediction():
     socketio.emit('new_prediction',pred_data)
     return jsonify({'status': 'success', 'received_prediction': pred_data}) 
 
+#메인페이지 실시간 파이차트 예측 후 index.html에 결과 반환 개발 중
+import sub.ml_server2 as sub
+import os
+
+@server.route('/predict_pie', methods=['GET'])
+def send_pie():
+    pcap_folder = 'C:\Users\김재민\Documents\GitHub\kisia_4work\pcaps'  # PCAP 파일이 저장된 폴더 경로
+    pcap_files = [f for f in os.listdir(pcap_folder) if f.endswith('.pcap')]
+
+    if not pcap_files:
+        return jsonify({'error': 'PCAP 파일이 존재하지 않습니다.'}), 400
+    
+    traffic_count = {0: 0, 1: 0, 2: 0}
+    app_count = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+
+    for pcap_file in pcap_files:
+        pcap_path = os.path.join(pcap_folder, pcap_file)
+        file_traffic_count, file_app_count = sub.predict(pcap_path)
+        
+        for key in traffic_count:
+            traffic_count[key] += file_traffic_count[key]
+        
+        for key in app_count:
+            app_count[key] += file_app_count[key]
+
+    total_traffic = sum(traffic_count.values())
+    total_app = sum(app_count.values())
+
+    traffic_ratios = {
+        'CHAT': traffic_count[0] / total_traffic if total_traffic > 0 else 0,
+        'VOIP': traffic_count[1] / total_traffic if total_traffic > 0 else 0,
+        'STREAMING': traffic_count[2] / total_traffic if total_traffic > 0 else 0,
+    }
+
+    app_ratios = {
+        'facebook': app_count[0] / total_app if total_app > 0 else 0,
+        'discord': app_count[1] / total_app if total_app > 0 else 0,
+        'skype': app_count[2] / total_app if total_app > 0 else 0,
+        'line': app_count[3] / total_app if total_app > 0 else 0,
+        'youtube': app_count[4] / total_app if total_app > 0 else 0,
+    }
+
+    return jsonify({
+        'traffic_ratios': traffic_ratios,
+        'app_ratios': app_ratios
+    })
+
+
+
+
 
 # 웹소켓 연결 처리
 @socketio.on('connect')
