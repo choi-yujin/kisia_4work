@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Non-real-time network statistics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='sub_style.css') }}"> <!-- CSS 파일 연결 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+</head>
+<body>
+    <h1>예측 결과</h1>
+
+    <!-- 날짜 선택 버튼 -->
+    <button id="select-date-btn">날짜 선택</button>
+    <input type="text" id="selected-date" readonly style="border:none; font-size:16px;">
+
+    <div class="chart-container">
+        <!-- 트래픽 유형 파이차트 -->
+        <div class="chart">
+            <h2>트래픽 유형</h2>
+            <div class="prediction-message" id="traffic-prediction-msg">예측중...</div>
+            <canvas id="trafficChart" style="display:none;" width="400" height="400"></canvas>
+        </div>
+        
+        <!-- 애플리케이션 유형 파이차트 -->
+        <div class="chart">
+            <h2>애플리케이션 유형</h2>
+            <div class="prediction-message" id="app-prediction-msg">예측중...</div>
+            <canvas id="appChart" style="display:none;" width="400" height="400"></canvas>
+        </div>
+    </div>
+
+    <div id="prediction-messages"></div>
+
+    <!-- 프로토콜 패킷 카운트 -->
+    <div id="protocol-chart-container">
+        <h2>프로토콜 통계</h2>
+        <canvas id="protocolChart" width="400" height="400"></canvas>
+    </div>
+
+    <script>
+        // Datepicker 팝업 생성
+        $(function() {
+            $("#select-date-btn").click(function() {
+                $("#selected-date").datepicker({
+                    dateFormat: "yymmdd", // 날짜 형식을 20241004처럼 표시
+                    onSelect: function(dateText) {
+                        $("#selected-date").val(dateText); // 선택된 날짜를 입력 필드에 표시
+                        showPredictionMessages(); // "예측중..." 메시지를 표시
+                        fetchProtocolCounts(dateText);
+                        fetchDataForSelectedDate(dateText); // 선택한 날짜로 데이터 로드
+                    }
+                }).datepicker("show");
+            });
+        });
+
+        // "예측중..." 메시지를 보이게 하는 함수
+        function showPredictionMessages() {
+            $("#traffic-prediction-msg").show();
+            $("#app-prediction-msg").show();
+            $("#trafficChart").hide();
+            $("#appChart").hide();
+        }
+
+        // 차트를 업데이트하고 "예측중..." 메시지를 숨기는 함수
+        function hidePredictionMessages() {
+            $("#traffic-prediction-msg").hide();
+            $("#app-prediction-msg").hide();
+            $("#trafficChart").show();
+            $("#appChart").show();
+        }
+
+        // 프로토콜 카운트 요청
+        function fetchProtocolCounts(selectedDate) {
+    fetch(`/protocol_counts?date=${selectedDate}`) // 서버에 프로토콜 카운트 요청
+    .then(response => response.json())
+    .then(data => {
+        const labels = Object.keys(data); // 프로토콜 이름들
+        const counts = Object.values(data); // 프로토콜별 패킷 수
+
+        // 기존 차트를 제거하고 새 차트를 생성
+        const chartContainer = document.getElementById('protocolChart').getContext('2d');
+
+        // 기존 차트가 있을 경우 삭제 (차트 중복 방지)
+        if (window.protocolChartInstance) {
+            window.protocolChartInstance.destroy();
+        }
+
+        // 새 파이 차트 생성
+        window.protocolChartInstance = new Chart(chartContainer, {
+            type: 'pie',  // 차트 타입을 pie로 변경
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '패킷 수',
+                    data: counts,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 206, 86, 0.2)',
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(153, 102, 255, 0.2)',
+                        'rgba(255, 159, 64, 0.2)',
+                        'rgba(199, 199, 199, 0.2)',
+                        'rgba(83, 102, 255, 0.2)',
+                        'rgba(99, 255, 132, 0.2)',
+                        'rgba(230, 206, 86, 0.2)',
+                        'rgba(192, 75, 92, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(199, 199, 199, 1)',
+                        'rgba(83, 102, 255, 1)',
+                        'rgba(99, 255, 132, 1)',
+                        'rgba(230, 206, 86, 1)',
+                        'rgba(192, 75, 92, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    }
+                }
+            }
+        });
+    });
+}
+
+
+        // 선택된 날짜에 맞는 예측 결과를 가져와 차트 생성
+        function fetchDataForSelectedDate(selectedDate) {
+            fetch(`/predict?date=${selectedDate}`) // 서버에 선택된 날짜 전송
+            .then(response => response.json())
+            .then(data => {
+                const trafficRatios = data.traffic_ratios;
+                const appRatios = data.app_ratios;
+                const predictionMessages = data.prediction_messages;
+
+                // 트래픽 유형 파이차트 업데이트
+                const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+                new Chart(trafficCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['CHAT', 'VOIP', 'STREAMING'],
+                        datasets: [{
+                            label: '트래픽 유형',
+                            data: [trafficRatios['CHAT'], trafficRatios['VOIP'], trafficRatios['STREAMING']],
+                            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+                        }]
+                    },
+                    options: {
+                        responsive: true
+                    }
+                });
+
+                // 애플리케이션 유형 파이차트 업데이트
+                const appCtx = document.getElementById('appChart').getContext('2d');
+                new Chart(appCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['facebook', 'discord', 'skype', 'line', 'youtube'],
+                        datasets: [{
+                            label: '애플리케이션 유형',
+                            data: [appRatios['facebook'], appRatios['discord'], appRatios['skype'], appRatios['line'], appRatios['youtube']],
+                            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56','green','brown'],
+                        }]
+                    },
+                    options: {
+                        responsive: true
+                    }
+                });
+
+                // 예측 문장 업데이트
+                const predictionMessagesContainer = document.getElementById('prediction-messages');
+                predictionMessagesContainer.innerHTML = predictionMessages.map(message => `<p>${message}</p>`).join('');
+
+                // "예측중..." 메시지 숨김
+                hidePredictionMessages();
+            });
+        }
+    </script>
+</body>
+</html>

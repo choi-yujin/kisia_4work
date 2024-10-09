@@ -1,13 +1,15 @@
 #파이차트 관련 예측하는 모델 파일
-
-
 import pickle
 import torch
 from torch.utils.data import Dataset
 from typing import Tuple, List, Any, Dict, Union
 import random
 from typing import Any, List, Union
-
+import dpkt
+import datetime
+from collections import Counter
+import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import pandas as pd
 from scapy.all import sniff
@@ -19,6 +21,8 @@ from scapy.packet import Padding, Packet
 from scipy import sparse
 from sklearn.model_selection import train_test_split
 import glob
+from scapy.all import rdpcap
+
 
 from flask import Flask, jsonify, render_template, request
 import torch.nn.functional as F
@@ -27,7 +31,13 @@ from tqdm import tqdm
 from collections import Counter
 import os
 
-app = Flask(__name__)
+from dotenv import load_dotenv
+
+
+# .env 파일 로드
+load_dotenv('mtc.env')
+
+app = Flask(__name__,static_folder='../static', template_folder='../templates')
 
 
 PREFIX_TO_TRAFFIC_ID = {
@@ -127,13 +137,6 @@ def get_dataset(data_rows: List[Dict[str, Any]]) -> Dataset:
     """Create a dataset with data samples"""
     ds = CustomListDataset(data_rows)
     return ds
-
-
-
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 
 
@@ -568,7 +571,6 @@ def preprocess_data(
     del pkt_arrays
 
     print(f'Save data with {len(data_rows)} rows')
-
     # Save a preprocessed data to pickle file
     with open('data/test_data_rows.pkl', 'wb') as f:
         pickle.dump(data_rows, f)
@@ -660,26 +662,62 @@ def test_op(
     return task_metrics, final_predicted_labels  # 최종 예측 레이블 반환
 
 
+def get_packet_times(pcap_file):
+    with open(pcap_file, 'rb') as f:
+        pcap = dpkt.pcap.Reader(f)
+
+        start_timestamp = None
+        last_timestamp = None
+
+        # 패킷의 타임스탬프를 반복하여 첫 번째와 마지막 타임스탬프를 기록
+        for i, (timestamp, _) in enumerate(pcap):
+            if i == 0:  # 첫 번째 패킷의 타임스탬프
+                start_timestamp = timestamp
+            last_timestamp = timestamp  # 마지막 패킷의 타임스탬프는 계속 업데이트
+
+        if start_timestamp and last_timestamp:
+            # Unix timestamp를 사람이 읽을 수 있는 시간 형식으로 변환
+            start_time = datetime.datetime.utcfromtimestamp(start_timestamp).strftime('%H:%M:%S')
+            last_time = datetime.datetime.utcfromtimestamp(last_timestamp).strftime('%H:%M:%S')
+            return start_time, last_time
+        else:
+            return None, None
+
 
 def predict(selected_date):
-    pcap_folder = 'C:/Users/김재민/Desktop/mtc_project/pcaps'
+    pcap_folder = os.getenv('PCAP_FOLDER')
     pcap_files = glob.glob(f'{pcap_folder}/{selected_date}*.pcap')  # 해당 날짜에 맞는 모든 pcap 파일을 가져옴
     traffic_labels = []
     app_labels = []
+    prediction_messages = []  # 예측 문장 리스트
 
     model = MTC()
-    model.load_state_dict(torch.load('C:\\Users\\김재민\\Desktop\\mtc_project\\MTC_model (1).pt'))
-
+    model.load_state_dict(torch.load(os.getenv('MODEL_PATH')))
     for pcap_file in pcap_files:  # 여러 pcap 파일을 처리
         preprocess_data(pcap_file)
+        print(pcap_file)
         _, final_predicted_labels = test_op(model)
+        start_time, last_time = get_packet_times(pcap_file)
 
         # 예측 결과 저장
         traffic_labels.append(final_predicted_labels[1])
         app_labels.append(final_predicted_labels[2])
 
+        TRAFFIC_ID_TO_PREFIX = {v: k for k, v in PREFIX_TO_TRAFFIC_ID.items()}
+        APP_ID_TO_PREFIX = {v: k for k, v in PREFIX_TO_APP_ID.items()}
+
+        predicted_traffic = TRAFFIC_ID_TO_PREFIX[final_predicted_labels[1]]
+        predicted_app = APP_ID_TO_PREFIX[final_predicted_labels[2]]
+
+        if start_time and last_time:
+            message = f"{start_time} ~ {last_time} ip 192.168.132.252에서 {predicted_app}를 사용하여 {predicted_traffic} traffic이 발생된걸로 예상됩니다"
+        else:
+            message = "패킷 정보를 불러올 수 없습니다."
+
+        prediction_messages.append(message)
+
         # 중간 파일 제거
-        file_path = 'C:/Users/김재민/Desktop/mtc_project/data/test_data_rows.pkl'
+        file_path = os.getenv('TEST_PKL')
         if os.path.exists(file_path):
             os.remove(file_path)
 
@@ -687,7 +725,82 @@ def predict(selected_date):
     traffic_count = Counter(traffic_labels)
     app_count = Counter(app_labels)
 
-    return traffic_count, app_count
+    return traffic_count, app_count, prediction_messages
+
+def count_protocols(pcap_file):
+    # 프로토콜 카운트 초기화
+    protocol_counts = {
+        'TCP': 0,
+        'UDP': 0,
+        'ICMP': 0,
+        'HTTP': 0,
+        'HTTPS': 0,
+        'FTP': 0,
+        'SMTP': 0,
+        'DNS': 0,
+        'SSH': 0,
+        'ARP': 0,
+        'Other': 0,
+    }
+
+    # pcap 파일 읽기
+    packets = rdpcap(pcap_file)
+    
+    # 각 패킷을 분석
+    for packet in packets:
+        if packet.haslayer('IP'):
+            protocol = packet['IP'].proto  # IP 레이어의 프로토콜 번호 가져오기
+            
+            # 프로토콜 번호에 따라 카운트 업데이트
+            if protocol == 6:  # TCP
+                protocol_counts['TCP'] += 1
+                if packet.haslayer('HTTP'):
+                    protocol_counts['HTTP'] += 1
+                elif packet.haslayer('HTTPS'):
+                    protocol_counts['HTTPS'] += 1
+                elif packet.haslayer('FTP'):
+                    protocol_counts['FTP'] += 1
+            elif protocol == 17:  # UDP
+                protocol_counts['UDP'] += 1
+                if packet.haslayer('DNS'):
+                    protocol_counts['DNS'] += 1
+            elif protocol == 1:  # ICMP
+                protocol_counts['ICMP'] += 1
+            elif protocol == 204:  # ARP
+                protocol_counts['ARP'] += 1
+            else:
+                protocol_counts['Other'] += 1  # 기타 프로토콜
+
+    return protocol_counts
+
+def get_protocol_counts(date):
+    pcap_folder = os.getenv("PCAP_FOLDER") # pcap 파일이 있는 폴더 경로
+    pcap_files = glob.glob(f'{pcap_folder}/{date}*.pcap')
+    print(pcap_files)
+    protocol_counts = {}
+    
+    for pcap_file in pcap_files:
+        counts = count_protocols(pcap_file)
+        
+        # 프로토콜 카운트를 총합
+        for protocol, count in counts.items():
+            if protocol in protocol_counts:
+                protocol_counts[protocol] += count
+            else:
+                protocol_counts[protocol] = count
+    
+    # 0이 아닌 프로토콜만 필터링
+    protocol_counts = {k: v for k, v in protocol_counts.items() if v > 0}
+    return protocol_counts
+
+@app.route('/protocol_counts', methods=['GET'])
+def protocol_counts():
+    date = request.args.get('date')  # 클라이언트에서 전송한 날짜를 받음
+    if not date:
+        return jsonify({'error': '날짜를 선택해주세요.'}), 400
+    
+    protocol_counts = get_protocol_counts(date)
+    return jsonify(protocol_counts)
 
 @app.route('/predict', methods=['GET'])
 def send_pie():
@@ -695,7 +808,7 @@ def send_pie():
     if not selected_date:
         return jsonify({'error': '날짜를 선택해주세요.'}), 400
     
-    traffic_count, app_count = predict(selected_date)
+    traffic_count, app_count, prediction_messages = predict(selected_date)
 
     total_traffic = sum(traffic_count.values())
     total_app = sum(app_count.values())
@@ -716,11 +829,14 @@ def send_pie():
 
     return jsonify({
         'traffic_ratios': traffic_ratios,
-        'app_ratios': app_ratios
+        'app_ratios': app_ratios,
+        'prediction_messages': prediction_messages
     })
+
 
 @app.route('/')
 def index():
-    return render_template('index2.html')
+    return render_template('sub.html')
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+    app.run(debug=True)
