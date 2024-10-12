@@ -10,6 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> 
 
     <style>
         body {
@@ -24,8 +25,14 @@
         #traffic-log {
             width: 45%;
         }
-        #chart {
-            width: 45%;
+        .chart-container{
+            display: flex;
+            justify-content: flex-start;
+        }
+        .chart {
+            width: 25%;
+            max-width: 300px;
+            height: 200px;
         }
         #packet-list-container {
             height: 400px;
@@ -36,13 +43,27 @@
         .result-container {
             width: 45%;
             border: 1px solid #ddd;
-            height: 300px;
-            overflow-y: auto;
+            height: 400px;
             margin-top: 20px;
         }
         #result-list {
             width: 100%;
+            height: 300px;
+            overflow-y: auto;
         }
+        .graph-container {
+            width: 45%;
+            border: 1px solid #ddd;
+            height: 400px;
+            margin-top: 20px;
+        }
+        #graph-image {
+            width: 100%;
+            height: auto;
+            margin-top: 10px;
+        }
+</style>
+        
     </style>
 </head>
 
@@ -59,27 +80,41 @@
     </div>
 
     <div id="chart">
-        <h3>Client Traffic Behavior Distribution</h3>
-        <canvas id="trafficChart"></canvas>
-        <canvas id="appChart" style="margin-top: 20px;"></canvas>
+        <h3>Traffic/App Pie Chart</h3>
+        <div class="chart-container">
+            <canvas id="trafficChart" class="chart"></canvas>
+            <canvas id="appChart" class="chart"></canvas>
+        </div>      
     </div>
 </div>
 
-<h3>MTC model result</h3>
-<div class="result-container">
-    <div id="result-list">
-        <ul id="prediction-list"></ul> 
+<div class="container" style="margin-top: 20px;">
+    
+    <div class="result-container">
+        <h3>MTC model prediction result</h3>
+        <div id="result-list">
+            <ul id="prediction-list"></ul> 
+        </div>
+    </div>
+
+    
+    <div class="graph-container">
+        <h3>Traffic Graph</h3>
+        <img id="graph-image" src="/static/line_graph.png" alt="Traffic Graph" style="display:block;"> 
     </div>
 </div>
 
 <script>
+    // Socket.IO 클라이언트 사용해서 서버와 실시간 연결
     var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+    // 자동 스크롤 활성화 여부 플래그
     var autoScrollEnabled = true;
 
     function smoothScrollTo(container, targetScrollTop, duration) {
-        var startScrollTop = container.scrollTop;
-        var distance = targetScrollTop - startScrollTop;
-        var startTime = null;
+    var startScrollTop = container.scrollTop;
+    var distance = targetScrollTop - startScrollTop;
+    var startTime = null;
 
         function scrollStep(timestamp) {
             if (!startTime) startTime = timestamp;
@@ -102,29 +137,57 @@
         listItem.innerHTML = 'Src: ' + packet.src_ip + ' -> Dst: ' + packet.dst_ip + '<br> ' + packet.summary + '<br>';
         packetList.appendChild(listItem);
 
+        // 패킷 추가 후 일정한 속도로 자동 스크롤 >> 이 안 되는 것 같은데
         setTimeout(function() {
             if (autoScrollEnabled) {
-                var packetListContainer = document.getElementById('packet-list-container');
-                smoothScrollTo(packetListContainer, packetListContainer.scrollHeight, 500);
+                    var packetListContainer = document.getElementById('packet-list-container');
+                    smoothScrollTo(packetListContainer, packetListContainer.scrollHeight, 500); // 500ms 동안 부드럽게 스크롤
             }
         }, 100);
     });
 
+    // 모델 예측 결과 수신 이벤트 처리
     socket.on('new_prediction', function(data) {
         var predictionList = document.getElementById('prediction-list');
         var listItem = document.createElement('li');
-        listItem.innerHTML = 'Traffic ID: ' + data['Traffic ID'] + '<br>' +
-                             'APP ID: ' + data['APP ID'] + '<br>' +
-                             'AUX ID: ' + data['AUX ID'];
+        listItem.innerHTML = 'Start Time: '+ data['start_time']+' ~ '+ 
+                            'End Time: ' + data['end_time'] + '<br>' +
+                            'Traffic ID: ' + data['Traffic ID'] + '<br>' +
+                             'APP ID: ' + data['APP ID'];
         predictionList.appendChild(listItem);
+
+        
     });
 
-    flatpickr(".datetime-picker", {
-        enableTime: true,
-        dateFormat: "Y-m-d H:i",
+    // 그래프 자동 갱신
+    function updateGraph() {
+        $.post('/generate_graph', function(response) {
+            if (response.status === 'success') {
+                // 그래프 이미지 업데이트
+                var graphImage = document.getElementById('graph-image');
+                graphImage.src = response.image_path; // 이미지 경로 업데이트
+                graphImage.style.display = 'block'; // 이미지 보이기
+            } else {
+                console.error(response.message);
+            }
+        });
+    }
+
+    // 주기적으로 그래프 업데이트 (60초마다)
+    setInterval(updateGraph, 60000);
+
+    // 소켓 이벤트 리스너 - 서버에서 그래프 갱신 이벤트 수신
+    socket.on('new_graph', function(data) {
+        document.getElementById('graph-image').src = '/static/line_graph.png?' + new Date().getTime(); // 캐시 방지
+        document.getElementById('graph-image').style.display = 'block'; // 이미지 보이기
     });
 
-    // 차트 초기화
+    // flatpickr(".datetime-picker", {
+    //     enableTime: true,
+    //     dateFormat: "Y-m-d H:i",
+    // });
+
+     // 차트 초기화
     const trafficData = {
         labels: ['CHAT', 'VOIP', 'STREAMING'],
         datasets: [{
@@ -163,6 +226,8 @@
         fetch('/predict_pie')
             .then(response => response.json())
             .then(data => {
+                console.log(data) //데이터 수신 확인하려고
+
                 // 트래픽 차트 업데이트
                 trafficChart.data.datasets[0].data = [
                     data.traffic_ratios.CHAT,
@@ -187,22 +252,10 @@
     }
 
     // 페이지 로드 시 차트 업데이트
+    setInterval(updateCharts,30000); //30초마다 업데이트
+
     updateCharts();
 
-    document.getElementById('analyze-btn').addEventListener('click', () => {
-        const startTime = document.getElementById('start-time').value;
-        const endTime = document.getElementById('end-time').value;
-
-        fetch(`/analyze-traffic?start=${startTime}&end=${endTime}`)
-            .then(response => response.json())
-            .then(result => {
-                document.getElementById('analysis-result').textContent = `F1 Score: ${result.f1_score}, Accuracy: ${result.accuracy}`;
-            })
-            .catch(error => {
-                document.getElementById('analysis-result').textContent = 'Error analyzing data';
-                console.error(error);
-            });
-    });
 </script>
 
 </body>
