@@ -684,9 +684,25 @@ def get_packet_times(pcap_file):
             return None, None
 
 
-def predict(selected_date):
-    pcap_folder = os.getenv('PCAP_FOLDER')
-    pcap_files = glob.glob(f'{pcap_folder}/{selected_date}*.pcap')  # 해당 날짜에 맞는 모든 pcap 파일을 가져옴
+def predict(selected_date, start_time=None, end_time=None):
+    pcap_folder = os.getenv("PCAP_FOLDER")  # pcap 파일이 있는 폴더 경로
+    pcap_files = glob.glob(f'{pcap_folder}/{selected_date}*.pcap')  # 날짜에 해당하는 모든 pcap 파일
+
+    if start_time and end_time:
+        # ':' 문자를 제거하여 시분을 정리합니다.
+        start_time = start_time.replace(':','')  # 1130 형식으로 변환
+        end_time = end_time.replace(':','')      # 1230 형식으로 변환
+        for f in pcap_files:
+            file_time = f[-9:-5]  # HHMM 부분 추출
+            print(f"File: {f}, Extracted Time: {file_time}")
+        # 선택된 날짜의 파일 중 시간 범위 내에 있는 파일을 필터링합니다.
+        pcap_files = [
+            f for f in pcap_files
+            if f.endswith('.pcap') and len(f) >= len(f"{pcap_folder}/{selected_date}") + 4 and  # 파일 이름이 충분히 긴지 확인
+            start_time <= f[-9:-5] <= end_time  # 마지막 4자리 (시간) 비교
+        ]
+    # 이하 기존 코드 동일
+
     traffic_labels = []
     app_labels = []
     prediction_messages = []  # 예측 문장 리스트
@@ -727,6 +743,10 @@ def predict(selected_date):
 
     return traffic_count, app_count, prediction_messages
 
+import os
+import glob
+from flask import jsonify, request
+
 def count_protocols(pcap_file):
     # 프로토콜 카운트 초기화
     protocol_counts = {
@@ -745,7 +765,7 @@ def count_protocols(pcap_file):
 
     # pcap 파일 읽기
     packets = rdpcap(pcap_file)
-    
+
     # 각 패킷을 분석
     for packet in packets:
         if packet.haslayer('IP'):
@@ -773,12 +793,27 @@ def count_protocols(pcap_file):
 
     return protocol_counts
 
-def get_protocol_counts(date):
-    pcap_folder = os.getenv("PCAP_FOLDER") # pcap 파일이 있는 폴더 경로
-    pcap_files = glob.glob(f'{pcap_folder}/{date}*.pcap')
-    print(pcap_files)
+def get_protocol_counts(date, start_time=None, end_time=None):
+    pcap_folder = os.getenv("PCAP_FOLDER")  # pcap 파일이 있는 폴더 경로
+    pcap_files = glob.glob(f'{pcap_folder}/{date}*.pcap')  # 날짜에 해당하는 모든 pcap 파일
+
+    if start_time and end_time:
+        # ':' 문자를 제거하여 시분을 정리합니다.
+        start_time = start_time.replace(':','')  # 1130 형식으로 변환
+        end_time = end_time.replace(':','')      # 1230 형식으로 변환
+        for f in pcap_files:
+            file_time = f[-9:-5]  # HHMM 부분 추출
+            print(f"File: {f}, Extracted Time: {file_time}")
+        # 선택된 날짜의 파일 중 시간 범위 내에 있는 파일을 필터링합니다.
+        pcap_files = [
+            f for f in pcap_files
+            if f.endswith('.pcap') and len(f) >= len(f"{pcap_folder}/{date}") + 4 and  # 파일 이름이 충분히 긴지 확인
+            start_time <= f[-9:-5] <= end_time  # 마지막 4자리 (시간) 비교
+        ]
+
+    print(f"Initial PCAP Files: {pcap_files}")  # 디버깅을 위한 출력
     protocol_counts = {}
-    
+
     for pcap_file in pcap_files:
         counts = count_protocols(pcap_file)
         
@@ -793,22 +828,30 @@ def get_protocol_counts(date):
     protocol_counts = {k: v for k, v in protocol_counts.items() if v > 0}
     return protocol_counts
 
+
 @app.route('/protocol_counts', methods=['GET'])
 def protocol_counts():
     date = request.args.get('date')  # 클라이언트에서 전송한 날짜를 받음
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
+    
     if not date:
         return jsonify({'error': '날짜를 선택해주세요.'}), 400
     
-    protocol_counts = get_protocol_counts(date)
+    protocol_counts = get_protocol_counts(date, start_time, end_time)
     return jsonify(protocol_counts)
 
 @app.route('/predict', methods=['GET'])
 def send_pie():
     selected_date = request.args.get('date')  # 클라이언트에서 전송한 날짜를 받음
+    start_time = request.args.get('start_time')  # 선택된 시작 시간
+    end_time = request.args.get('end_time')      # 선택된 종료 시간
+
     if not selected_date:
         return jsonify({'error': '날짜를 선택해주세요.'}), 400
-    
-    traffic_count, app_count, prediction_messages = predict(selected_date)
+
+    # 선택된 날짜와 시간대를 기반으로 예측 함수 호출
+    traffic_count, app_count, prediction_messages = predict(selected_date, start_time, end_time)
 
     total_traffic = sum(traffic_count.values())
     total_app = sum(app_count.values())

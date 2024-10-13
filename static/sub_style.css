@@ -1,35 +1,49 @@
-/* 스타일 기본 설정 */
+/* 전체 화면 스타일 */
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Roboto', sans-serif;
     margin: 0;
     padding: 20px;
-    background-color: #f5f5f5;
+    background-color: #1e1e2f; /* 어두운 배경색으로 변경 */
+    color: #d4d4dc; /* 텍스트 색상도 밝은 회색으로 변경 */
 }
 
 /* 헤더 스타일 */
-h1, h2 {
+h1 {
+    text-align: left;
+    color: #f5f5f5;
+    font-size: 28px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    margin:0;
+}
+
+/* 섹션 제목 스타일 */
+h2 {
     text-align: center;
-    color: black;
+    color: #f5f5f5;
+    font-size: 20px;
+    text-transform: uppercase;
 }
 
 /* 차트 컨테이너 스타일 */
 .chart-container {
     display: flex;
-    justify-content: space-between; /* 차트를 가로로 균등하게 배치 */
-    align-items: flex-start; /* 차트의 위쪽을 정렬 */
-    flex-wrap: nowrap; /* 줄바꿈 없이 한 줄에 배치 */
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: nowrap;
     margin: 20px 0;
 }
 
 /* 개별 차트 스타일 */
 .chart {
-    flex: 1; /* 차트의 넓이를 균등하게 분배 */
-    max-width: 33%; /* 3개의 차트를 가로로 3등분 */
-    height: calc(50vh - 40px); /* 화면 높이의 50% 사용, 여백을 고려 */
-    margin: 10px; /* 차트 간의 간격 */
-    display: flex;
-    flex-direction: column; /* 내용 세로 배치 */
-    align-items: center; /* 가운데 정렬 */
+    flex: 1;
+    max-width: 33%;
+    padding: 20px;
+    box-sizing: border-box;
+    border: 2px solid #333; /* 어두운 경계선 */
+    border-radius: 10px;
+    background-color: #2a2a40; /* 차트 영역 배경을 어두운 색으로 변경 */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* 그림자 효과 */
 }
 
 /* 예측 메시지 스타일 */
@@ -37,10 +51,10 @@ h1, h2 {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100px; /* 예측 메시지 높이 조정 */
+    height: 100px;
     font-size: 18px;
     color: #999;
-    text-align: center; /* 메시지 중앙 정렬 */
+    text-align: center;
 }
 
 /* 프로토콜 차트 컨테이너 스타일 */
@@ -49,16 +63,33 @@ h1, h2 {
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    height: calc(50vh - 40px); /* 프로토콜 차트의 높이도 동일하게 설정 */
+    height: calc(50vh - 40px);
+    background-color: #2a2a40;
+    border: 2px solid #333;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    margin-top: 20px;
+    padding: 20px;
+}
+
+/* 예측 결과 박스 스타일 */
+.prediction-box {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #444;
+    background-color: #2a2a40;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    color: #f5f5f5;
 }
 
 /* 미디어 쿼리: 화면 크기가 작을 때 차트의 너비 조정 */
 @media (max-width: 768px) {
     .chart {
-        flex: 1 1 100%; /* 작은 화면에서는 차트가 100% 너비를 가짐 */
-        height: 200px; /* 작은 화면에서는 고정 높이 */
+        flex: 1 1 100%;
+        height: 200px;
     }
     #protocol-chart-container {
-        height: 200px; /* 작은 화면에서도 프로토콜 차트의 높이 조정 */
+        height: 200px;
     }
 }
