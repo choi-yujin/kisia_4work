@@ -7,11 +7,24 @@ import time
 import requests
 import json
 import subprocess
+from dotenv import load_dotenv
+
+load_dotenv()
+
+server_url=os.getenv('SERVER_URL')
+iface_name=os.getenv('IFACE_NAME')
 
 # 파일 생성 간격 설정 (초)
-file_interval = 180  # 임의로 60초로 설정
+file_interval = 60  # 1분 간격
 last_file_time = time.time()
-current_file = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.pcap"
+
+#파이차트에 쓸 pcap을 저장할 폴더
+pcaps_folder = os.getenv('PCAP_FOLDER')
+    
+if not os.path.exists(pcaps_folder):
+    os.makedirs(pcaps_folder)  # 폴더가 없으면 생성
+
+current_file = os.path.join(pcaps_folder,f"{datetime.now().strftime('%Y%m%d_%H%M')}.pcap")
 
 # 패킷을 처리하고 저장하며 서버로 전송하는 함수
 def packet_handler(packet):
@@ -20,16 +33,10 @@ def packet_handler(packet):
     # 현재 시간 확인
     current_time = time.time()
 
-    #파이차트에 쓸 pcap을 저장할 폴더
-    pcaps_folder = 'C:/Users/김재민/Documents/GitHub/kisia_4work/pcaps'
-    
-    if not os.path.exists(pcaps_folder):
-        os.makedirs(pcaps_folder)  # 폴더가 없으면 생성
-
     # 일정 시간이 지나면 새로운 파일 생성
     if current_time - last_file_time >= file_interval: # 현재-마지막 >= 60초 면 새로운 파일 생성
         last_file_time = current_time
-        current_file = os.path.join(pcaps_folder, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.pcap")
+        current_file = os.path.join(pcaps_folder, f"{datetime.now().strftime('%Y%m%d_%H%M')}.pcap")
         print(f"New file: {current_file}")
 
     # 패킷을 현재 파일에 추가
@@ -50,13 +57,12 @@ def packet_handler(packet):
         }
 
         # # 서버에 packet_data 전송
-        packet_response = requests.post('http://192.168.219.109:5000/receive_packet', json=packet_data)
-        print(f'-Status code: {packet_response.status_code}')  # 서버로부터 받은 HTTP status code
+        packet_response = requests.post(f'{server_url}/receive_packet', json=packet_data)
+        # print(f'-Status code: {packet_response.status_code}')  # 서버로부터 받은 HTTP status code
 
-# 패킷을 캡처할 인터페이스 지정
-iface_name = '\\Device\\NPF_{B52A31B3-CC46-4616-B32A-2C5BD844D5C9}'
+# # 패킷을 캡처할 인터페이스 지정
+# iface_name = '\\Device\\NPF_{B52A31B3-CC46-4616-B32A-2C5BD844D5C9}'
 
 # sniff(인터페이스, 패킷 처리 함수, 필터 설정)
 sniff(iface=iface_name, prn=packet_handler,count=0, store=0)
 #store=0 >> 메모리에 저장X
-# http,https만 캡쳐하도록 지정
