@@ -63,13 +63,25 @@
                     onSelect: function(dateText) {
                         $("#selected-date").val(dateText); // 선택된 날짜를 입력 필드에 표시
                         showPredictionMessages(); // "예측중..." 메시지를 표시
-                        fetchProtocolCounts(dateText);
-                        fetchDataForSelectedDateAndTime(dateText); // 선택한 날짜로 데이터 로드
+                        fetchAllData(dateText);  // 모든 데이터 요청 함수 실행
                     }
                 }).datepicker("show");
             });
         });
-
+    
+        // 모든 데이터를 동시에 요청하고 차트 및 메시지를 업데이트하는 함수
+        function fetchAllData(selectedDate) {
+            // 동시에 두 fetch 요청을 실행
+            Promise.all([
+                fetchProtocolCounts(selectedDate),  // 프로토콜 카운트 요청
+                fetchDataForSelectedDateAndTime(selectedDate)  // 트래픽 및 애플리케이션 데이터 요청
+            ]).then(() => {
+                // 두 요청이 모두 완료된 후 실행
+                hidePredictionMessages(); // 
+           
+            });
+        }
+    
         // "예측중..." 메시지를 보이게 하는 함수
         function showPredictionMessages() {
             $("#traffic-prediction-msg").show();
@@ -89,32 +101,32 @@
             $("#appChart").show();
             $("#protocolChart").show();
         }
-
-        // 프로토콜 카운트 요청
+    
+        // 프로토콜 카운트 요청 함수
         function fetchProtocolCounts(selectedDate) {
             const startTime = $("#start-time").val();
             const endTime = $("#end-time").val();
-
+    
             // 서버에 날짜와 시간대 전송
             let url = `/protocol_counts?date=${selectedDate}`;
             if (startTime && endTime) {
                 url += `&start_time=${startTime}&end_time=${endTime}`;
             }
-
-            fetch(url)  // 서버에 프로토콜 카운트 요청
+    
+            return fetch(url)  // 서버에 프로토콜 카운트 요청
                 .then(response => response.json())
                 .then(data => {
                     const labels = Object.keys(data); // 프로토콜 이름들
                     const counts = Object.values(data); // 프로토콜별 패킷 수
-
+    
                     // 기존 차트를 제거하고 새 차트를 생성
                     const chartContainer = document.getElementById('protocolChart').getContext('2d');
-
+    
                     // 기존 차트가 있을 경우 삭제 (차트 중복 방지)
                     if (window.protocolChartInstance) {
                         window.protocolChartInstance.destroy();
                     }
-
+    
                     // 새 파이 차트 생성
                     window.protocolChartInstance = new Chart(chartContainer, {
                         type: 'pie',  // 차트 타입을 pie로 변경
@@ -162,71 +174,67 @@
                             }
                         }
                     });
-                    hidePredictionMessages(); // 차트가 로드되면 "예측중..." 메시지를 숨김
                 });
-    }
-
-
+        }
+    
         // 선택된 날짜 및 시간대에 맞는 예측 결과를 가져와 차트 생성
         function fetchDataForSelectedDateAndTime(selectedDate) {
             const startTime = $("#start-time").val();
             const endTime = $("#end-time").val();
-
+    
             // 서버에 날짜와 시간대 전송
             let url = `/predict?date=${selectedDate}`;
             if (startTime && endTime) {
                 url += `&start_time=${startTime}&end_time=${endTime}`;
             }
-
-            fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                const trafficRatios = data.traffic_ratios;
-                const appRatios = data.app_ratios;
-                const predictionMessages = data.prediction_messages;
-
-                // 트래픽 유형 파이차트 업데이트
-                const trafficCtx = document.getElementById('trafficChart').getContext('2d');
-                new Chart(trafficCtx, {
-                    type: 'pie',
-                    data: {
-                        labels: ['CHAT', 'VOIP', 'STREAMING'],
-                        datasets: [{
-                            label: '트래픽 유형',
-                            data: [trafficRatios['CHAT'], trafficRatios['VOIP'], trafficRatios['STREAMING']],
-                            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
-                        }]
-                    },
-                    options: {
-                        responsive: true
-                    }
+    
+            return fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const trafficRatios = data.traffic_ratios;
+                    const appRatios = data.app_ratios;
+                    const predictionMessages = data.prediction_messages;
+    
+                    // 트래픽 유형 파이차트 업데이트
+                    const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+                    new Chart(trafficCtx, {
+                        type: 'pie',
+                        data: {
+                            labels: ['CHAT', 'VOIP', 'STREAMING'],
+                            datasets: [{
+                                label: '트래픽 유형',
+                                data: [trafficRatios['CHAT'], trafficRatios['VOIP'], trafficRatios['STREAMING']],
+                                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+                            }]
+                        },
+                        options: {
+                            responsive: true
+                        }
+                    });
+    
+                    // 애플리케이션 유형 파이차트 업데이트
+                    const appCtx = document.getElementById('appChart').getContext('2d');
+                    new Chart(appCtx, {
+                        type: 'pie',
+                        data: {
+                            labels: ['facebook', 'discord', 'skype', 'line', 'youtube'],
+                            datasets: [{
+                                label: '애플리케이션 유형',
+                                data: [appRatios['facebook'], appRatios['discord'], appRatios['skype'], appRatios['line'], appRatios['youtube']],
+                                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56','green','brown'],
+                            }]
+                        },
+                        options: {
+                            responsive: true
+                        }
+                    });
+    
+                    // 예측 문장 업데이트
+                    const predictionMessagesContainer = document.getElementById('prediction-messages');
+                    predictionMessagesContainer.innerHTML = predictionMessages.map(message => `<p>${message}</p>`).join('');
                 });
-
-                // 애플리케이션 유형 파이차트 업데이트
-                const appCtx = document.getElementById('appChart').getContext('2d');
-                new Chart(appCtx, {
-                    type: 'pie',
-                    data: {
-                        labels: ['facebook', 'discord', 'skype', 'line', 'youtube'],
-                        datasets: [{
-                            label: '애플리케이션 유형',
-                            data: [appRatios['facebook'], appRatios['discord'], appRatios['skype'], appRatios['line'], appRatios['youtube']],
-                            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56','green','brown'],
-                        }]
-                    },
-                    options: {
-                        responsive: true
-                    }
-                });
-
-                // 예측 문장 업데이트
-                const predictionMessagesContainer = document.getElementById('prediction-messages');
-                predictionMessagesContainer.innerHTML = predictionMessages.map(message => `<p>${message}</p>`).join('');
-
-                // 차트가 로드되면 "예측중..." 메시지를 숨김
-                hidePredictionMessages();
-            });
         }
     </script>
+    
 </body>
 </html>

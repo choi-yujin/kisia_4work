@@ -687,6 +687,8 @@ def get_packet_times(pcap_file):
 def predict(selected_date, start_time=None, end_time=None):
     pcap_folder = os.getenv("PCAP_FOLDER")  # pcap 파일이 있는 폴더 경로
     pcap_files = glob.glob(f'{pcap_folder}/{selected_date}*.pcap')  # 날짜에 해당하는 모든 pcap 파일
+    
+    
 
     if start_time and end_time:
         # ':' 문자를 제거하여 시분을 정리합니다.
@@ -852,7 +854,7 @@ def send_pie():
 
     # 선택된 날짜와 시간대를 기반으로 예측 함수 호출
     traffic_count, app_count, prediction_messages = predict(selected_date, start_time, end_time)
-
+    print(start_time)
     total_traffic = sum(traffic_count.values())
     total_app = sum(app_count.values())
 
