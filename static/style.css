@@ -39,8 +39,6 @@ body{
 .logo {
   width: 100px;
   height: 100px;
-  /* width: 42.24%;
-  height: 6%; */
   position: absolute;
   right: 52.01%;
   left: 5.76%;
@@ -183,9 +181,7 @@ a {
   grid-gap: 20px;
   height: calc(100vh-110px);
   margin-top: 110px;
-  /* flex-grow: 1; */
-  /* display: flex; */
-  /* flex-direction: column; */
+  margin-bottom: -10px;
 }
 
 /* 패킷 리스트  */
@@ -196,7 +192,6 @@ a {
   border-radius: 18.31px;
   height: 500px;
   width: 750px;
-  /* position: relative; */
   box-shadow: 0px 4.88px 39.07px 0px rgba(0, 0, 0, 0.07);
   margin-right: 30px;
   overflow-y: auto;
@@ -240,11 +235,16 @@ a {
   justify-content: center;     /* 수평 중앙 정렬 */
   align-items: center;         /* 수직 중앙 정렬 */
   margin-top: 10px;
-  /* position: relative; */
-  /* overflow: visible;
-  margin-top: 20px;
-  left: 100%; */
+}
 
+.sub-title{
+  margin-left: 35px;
+  margin-top: -20px;
+  margin-bottom: 5px;
+  font-family: "Roboto-Medium", sans-serif;
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: 600;
 }
 
 .preds {
@@ -262,16 +262,8 @@ a {
   overflow-y: auto;
 }
 
-.sub-title{
-  font-family: "Roboto-Medium", sans-serif;
-  font-size: 20px;
-  line-height: 30px;
-  font-weight: 600;
-}
-
 .prediction-list{
   list-style-type:none;
-  /* padding-left: 50px; */
   padding-left: 0;
   margin: 0;
 }
