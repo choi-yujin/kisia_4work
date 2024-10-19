@@ -6,9 +6,7 @@ import pandas as pd
 from collections import defaultdict
 import time
 from dotenv import load_dotenv
-
-load_dotenv()
-file_interval = os.getenv('FILE_INTERVAL')
+import numpy as np
 
 # 플로우를 식별하기 위한 함수 (5-튜플: src IP, src Port, dst IP, dst Port, 프로토콜)
 def get_flow(packet):
@@ -63,7 +61,7 @@ def analyze_pcap(file_path):
 
 # 여러 pcap 파일의 플로우를 시각화
 def plot_flows_over_time(all_flows, file_names):
-    plt.figure(figsize=(14, 8))
+    plt.figure(figsize=(7,2.5))
 
     flow_data = defaultdict(lambda: defaultdict(int))
 
@@ -93,18 +91,16 @@ def plot_flows_over_time(all_flows, file_names):
         for (app_type, protocol), count in flow_counts.items():
             flow_matrix.loc[time, (app_type, protocol)] += count
 
+    plt.rcParams.update({'font.size':8})
+    plt.rc('legend',fontsize=6)
+
     # 영역 그래프 그리기
-    flow_matrix.plot(kind='area', stacked=True, figsize=(14, 8), alpha=0.7)
+    flow_matrix.plot(kind='area', stacked=True, figsize=(7,2.5), alpha=0.7)
 
-    # 곡선 그래프 추가 (drawstyle='steps-post' 옵션 사용)
-    for app_proto in flow_matrix.columns:
-        app_type, protocol = app_proto
-        plt.plot(flow_matrix.index, flow_matrix[app_proto], label=f'{app_type} ({protocol})', drawstyle='steps-post')
-
-    plt.xlabel('Time (30-second intervals)')
+    plt.xlabel('Time (30-second intervals)',fontsize=6)
     plt.ylabel('Packet Count')
     plt.title('Application and Protocol Packet Flow Over Time')
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=0,fontsize=6,horizontalalignment='center')
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
 
@@ -113,23 +109,22 @@ def plot_flows_over_time(all_flows, file_names):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)  # 디렉토리 생성
 
-    plt.savefig(os.path.join(output_dir, 'line_graph.png'))  # 이미지 저장
+    plt.savefig(os.path.join(output_dir, 'flow_graph.png'))  # 이미지 저장
     plt.close()
 
 # 디렉토리에 있는 모든 pcap 파일을 분석
 def analyze_multiple_pcaps(pcap_dir,check_interval=70):
     all_flows = {}
 
+
     for file_name in os.listdir(pcap_dir):
         if file_name.endswith('.pcap'):
             file_path = os.path.join(pcap_dir, file_name)
-            time.sleep(file_interval)
+            # time.sleep(file_interval)
             print(f"Analyzing {file_name}...")
 
             # pcap 파일 분석
             flows = analyze_pcap(file_path)
-
-            # time.sleep(check_interval) #굳이 안 해도 될 듯
 
             # 플로우 저장
             all_flows[file_name] = flows
