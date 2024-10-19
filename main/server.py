@@ -37,10 +37,10 @@ ratios = {  # 비율 데이터를 저장할 전역 변수
 # 기본 웹페이지 라우트
 @server.route('/', methods=['GET'])
 def index():
-    return render_template('index.html')  # index1.html 반환 (패킷 실시간 표시용)
+    return render_template('dashboard.html')  # index1.html 반환 (패킷 실시간 표시용)
 
 # 패킷 수신 엔드포인트
-@server.route('/receive_packet', methods=['POST'])
+@server.route('/stream/receive_packet', methods=['POST'])
 def receive_packet():
     packet_data = request.json  # client에서 보낸 JSON 형식의 패킷 데이터 받아오기
     packets.append(packet_data)  # 패킷 데이터 리스트에 추가
@@ -52,7 +52,7 @@ def receive_packet():
 
 # 모델 예측 결과 수신 엔드포인트
 predictions=[]
-@server.route('/receive_prediction',methods=['POST'])
+@server.route('/stream/receive_prediction',methods=['POST'])
 def receive_prediction():
     pred_data=request.json #예측 데이터 수신
     predictions.append(pred_data) #데이터 저장
@@ -62,7 +62,7 @@ def receive_prediction():
     return jsonify({'status': 'success', 'received_prediction': pred_data})  #상태 응답, 예측 데이터
 
 # 파이차트 ratio 수신 엔드포인트
-@server.route('/predict_pie', methods=['POST'])  
+@server.route('/stream/pie_rate', methods=['POST'])  
 def receive_pie():
     global ratios  # ratios를 전역 변수로 사용
     ratio_data = request.json  # 클라이언트에서 보낸 JSON 형식의 비율 데이터 받아오기
@@ -73,14 +73,13 @@ def receive_pie():
     print(f'update ratios: {ratios}')
     return jsonify({'status': 'success', 'updated_ratios': ratios})  # 업데이트 상태 반환
 
-@server.route('/predict_pie', methods=['GET'])
+@server.route('/stream/pie_rate', methods=['GET'])
 def send_pie():
     # ratios 데이터를 반환
     return jsonify(ratios)
 
-graph_image_path='./static/line_graph.png'
-
 # 그래프 생성, 웹소켓으로 업데이트
+graph_image_path='./static/flow_graph.png'
 def create_graph():
     try:
         subprocess.run(['python', 'graph.py'], check=True)
@@ -99,7 +98,7 @@ def create_graph():
         return None
     
 # 그래프 생성 코드 실행 엔드포인트
-@server.route('/generate_graph', methods=['POST'])
+@server.route('/stream/packet_flow', methods=['POST'])
 def generate_graph():
     return create_graph()  
 
@@ -114,14 +113,14 @@ def update_graph_periodically(interval):
 # packet.py와 MTC_model.py 자동 실행
 def start_packet_capture():
     try:
-        subprocess.Popen(['python', 'packet2.py'])
+        subprocess.Popen(['python', 'packet.py'])
         print("Packet capture started.")
     except Exception as e:
         print(f'Error starting packet capture: {e}')
 
 def start_model_prediction():
     try:
-        subprocess.Popen(['python', 'MTC_model_1.py'])
+        subprocess.Popen(['python', 'mtc_model.py'])
         print("Model prediction started.")
     except Exception as e:
         print(f'Error starting model prediction: {e}')
@@ -136,6 +135,6 @@ if __name__ == '__main__':
     start_packet_capture()
     start_model_prediction()
 
-    socketio.start_background_task(update_graph_periodically, 60)  # 60초마다 그래프 업데이트
+    socketio.start_background_task(update_graph_periodically, 30)  # 30초마다 그래프 업데이트
 
     socketio.run(server, host='0.0.0.0', port=5000)  # Flask 서버 실행 (WebSocket 포함)
