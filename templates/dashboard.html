@@ -5,105 +5,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Network Traffic Analysis</title>
+    <title>TLScope</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> 
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400&display=swap" rel="stylesheet">
+
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        .container {
-            display: flex;
-            justify-content: space-between;
-            max-height: 500px;
-        }
-        #traffic-log {
-            width: 45%;
-        }
-        .chart-container{
-            display: flex;
-            justify-content: flex-start;
-        }
-        .chart {
-            width: 25%;
-            max-width: 300px;
-            height: 200px;
-        }
-        #packet-list-container {
-            height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            padding: 10px;
-        }
-        .result-container {
-            width: 45%;
-            border: 1px solid #ddd;
-            height: 400px;
-            margin-top: 20px;
-        }
-        #result-list {
-            width: 100%;
-            height: 300px;
-            overflow-y: auto;
-        }
-        .graph-container {
-            width: 45%;
-            border: 1px solid #ddd;
-            height: 400px;
-            margin-top: 20px;
-        }
-        #graph-image {
-            width: 100%;
-            height: auto;
-            margin-top: 10px;
-        }
-</style>
-        
+
     </style>
 </head>
 
 <body>
+    <div class="sidebar">
+        <div class="rectangle-502"></div>
+        <div class="bg"></div>
+        <img class="logo" src="/static/logo.png" />
+        <div class="general">
+            <div class="tab1">
+                <img class="icon-element-3" src="/static/icon1.png" />
+                <a href="dashboard.html" class="dashboard_text">Dashboard</a>
+            </div>
+            <div class="tab2">
+                <img class="icon-presention-chart" src="/static/icon2.png" />
+                <a href="index.html" class="statistic_text">Statistic</a>
+            </div>
+        </div>            
+    </div>
 
-<h1>Network Traffic Analysis</h1>
+    <div class="container">
+        <div class="header">
+            <div class="dashboard">Dashboard</div>
+        </div>
+        
+        <div class="content">
+            <div class="packet-title">실시간 Packet List</div>
+            <div class="packet-container">
+                <ul id="packet-list"></ul>
+            </div>
 
-<div class="container">
-    <div id="traffic-log">
-        <h3>Real-time Network Traffic</h3>
-        <div id="packet-list-container">
-            <ul id="packet-list"></ul>
+            <div class="flow-title">Packet Chart & Flow</div>
+            <div class="chart-container">
+                <canvas id="trafficChart" class="chart"></canvas>
+                <canvas id="appChart" class="chart"></canvas>
+            </div>
+
+            <div class="packet-flow">
+                <img id="graph-image" src="/static/flow_graph.png" style="background-color: white; width: 100%; height: auto;"onerror="this.style.display='none';"> 
+            </div>
+            
+        </div>
+        <div class="preds-title">SSL/TLS 트래픽 가시화 결과</div>
+        <div class="preds">            
+            <ul id="prediction-list"></ul>
         </div>
     </div>
-
-    <div id="chart">
-        <h3>Traffic/App Pie Chart</h3>
-        <div class="chart-container">
-            <canvas id="trafficChart" class="chart"></canvas>
-            <canvas id="appChart" class="chart"></canvas>
-        </div>      
-    </div>
-</div>
-
-<div class="container" style="margin-top: 20px;">
+</body>
     
-    <div class="result-container">
-        <h3>MTC model prediction result</h3>
-        <div id="result-list">
-            <ul id="prediction-list"></ul> 
-        </div>
-    </div>
-
-    
-    <div class="graph-container">
-        <h3>Traffic Graph</h3>
-        <img id="graph-image" src="/static/line_graph.png" alt="Traffic Graph" style="display:block;"> 
-    </div>
-</div>
-
 <script>
     // Socket.IO 클라이언트 사용해서 서버와 실시간 연결
     var socket = io.connect('http://' + document.domain + ':' + location.port);
@@ -140,8 +104,8 @@
         // 패킷 추가 후 일정한 속도로 자동 스크롤 >> 이 안 되는 것 같은데
         setTimeout(function() {
             if (autoScrollEnabled) {
-                    var packetListContainer = document.getElementById('packet-list-container');
-                    smoothScrollTo(packetListContainer, packetListContainer.scrollHeight, 500); // 500ms 동안 부드럽게 스크롤
+                    var packetListContainer = document.querySelector('.packet-container');
+                    smoothScrollTo(packetListContainer, packetListContainer.scrollHeight, 2000); // 500ms 동안 부드럽게 스크롤
             }
         }, 100);
     });
@@ -151,17 +115,25 @@
         var predictionList = document.getElementById('prediction-list');
         var listItem = document.createElement('li');
         listItem.innerHTML = 'Start Time: '+ data['start_time']+' ~ '+ 
-                            'End Time: ' + data['end_time'] + '<br>' +
-                            'Traffic ID: ' + data['Traffic ID'] + '<br>' +
+                            'End Time: ' + data['end_time'] + '&nbsp' + '->' + '&nbsp' +
+                            'Traffic ID: ' + data['Traffic ID'] + '&nbsp' + '|' + '&nbsp' +
                              'APP ID: ' + data['APP ID'];
         predictionList.appendChild(listItem);
+
+        // 패킷 추가 후 일정한 속도로 자동 스크롤 >> 이 안 되는 것 같은데
+        setTimeout(function() {
+            if (autoScrollEnabled) {
+                    var packetListContainer = document.querySelector('preds');
+                    smoothScrollTo(packetListContainer, packetListContainer.scrollHeight, 500); // 500ms 동안 부드럽게 스크롤
+            }
+        }, 100);
 
         
     });
 
     // 그래프 자동 갱신
     function updateGraph() {
-        $.post('/generate_graph', function(response) {
+        $.post('/stream/packet_flow', function(response) {
             if (response.status === 'success') {
                 // 그래프 이미지 업데이트
                 var graphImage = document.getElementById('graph-image');
@@ -178,21 +150,16 @@
 
     // 소켓 이벤트 리스너 - 서버에서 그래프 갱신 이벤트 수신
     socket.on('new_graph', function(data) {
-        document.getElementById('graph-image').src = '/static/line_graph.png?' + new Date().getTime(); // 캐시 방지
+        document.getElementById('graph-image').src = '/static/flow_graph.png?' + new Date().getTime(); // 캐시 방지
         document.getElementById('graph-image').style.display = 'block'; // 이미지 보이기
     });
-
-    // flatpickr(".datetime-picker", {
-    //     enableTime: true,
-    //     dateFormat: "Y-m-d H:i",
-    // });
 
      // 차트 초기화
     const trafficData = {
         labels: ['CHAT', 'VOIP', 'STREAMING'],
         datasets: [{
             data: [0, 0, 0], // 초기값
-            backgroundColor: ['#2e8b57', '#66cdaa', '#8fbc8f']
+            backgroundColor: ['#675aff', '#4b54e0', '#3246c7']
         }]
     };
 
@@ -200,7 +167,7 @@
         labels: ['facebook', 'discord', 'skype', 'line', 'youtube'],
         datasets: [{
             data: [0, 0, 0, 0, 0], // 초기값
-            backgroundColor: ['#3cb371', '#2e8b57', '#006400', '#8fbc8f', '#66cdaa']
+            backgroundColor: ['#a5b3ff', '#675aff', '#4b54e0', '#3d57d7', '#3246c7']
         }]
     };
 
@@ -209,7 +176,19 @@
         type: 'pie',
         data: trafficData,
         options: {
-            responsive: true
+            responsive: true,
+            maintainAspectRatio: false, // 비율 유지하지 않도록 설정
+            plugins: {
+                legend: {
+                    display: true, // 레전드 표시
+                    position: 'bottom', // 레전드를 하단으로 설정
+                    align: 'center', // 레전드를 왼쪽으로 정렬
+                    labels: {
+                        boxWidth: 10, // 박스 너비 조정
+                        padding: 10, // 패딩 조정
+                    }
+                }
+            }
         }
     });
 
@@ -218,12 +197,24 @@
         type: 'pie',
         data: appData,
         options: {
-            responsive: true
+            responsive: true,
+            maintainAspectRatio: false, // 비율 유지하지 않도록 설정
+            plugins: {
+                legend: {
+                    display: true, // 레전드 표시
+                    position: 'bottom', // 레전드를 하단으로 설정
+                    align: 'center', // 레전드를 왼쪽으로 정렬
+                    labels: {
+                        boxWidth: 10, // 박스 너비 조정
+                        padding: 10, // 패딩 조정
+                    }
+                }
+            }
         }
     });
 
     function updateCharts() {
-        fetch('/predict_pie')
+        fetch('/stream/pie_rate')
             .then(response => response.json())
             .then(data => {
                 console.log(data) //데이터 수신 확인하려고
