@@ -1,95 +1,300 @@
-/* 전체 화면 스타일 */
-body {
-    font-family: 'Roboto', sans-serif;
-    margin: 0;
-    padding: 20px;
-    background-color: #1e1e2f; /* 어두운 배경색으로 변경 */
-    color: #d4d4dc; /* 텍스트 색상도 밝은 회색으로 변경 */
+*{
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-/* 헤더 스타일 */
-h1 {
-    text-align: left;
-    color: #f5f5f5;
-    font-size: 28px;
-    margin-bottom: 20px;
-    text-transform: uppercase;
-    margin:0;
+body{
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin: 0;
 }
 
-/* 섹션 제목 스타일 */
-h2 {
-    text-align: center;
-    color: #f5f5f5;
-    font-size: 20px;
-    text-transform: uppercase;
+/* 사이드바 스타일*/
+.sidebar {
+  background: #e5e5e5;
+  width: 313px;
+  height: 1264px;
+  position: fixed;
+}
+.rectangle-502 {
+  background: var(--main-100, #675aff);
+  border-radius: 12.21px;
+  width: 240.5px;
+  height: 61.04px;
+  position: absolute;
+  left: 34.18px;
+  top: 150.16px;
+}
+.bg {
+  width: 312.53px;
+  height: 1506.51px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
 }
 
-/* 차트 컨테이너 스타일 */
-.chart-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: nowrap;
-    margin: 20px 0;
+/* 사이드바 로고 */
+.logo {
+  width: 240px;
+  height: 70px;
+  /* width: 42.24%;
+  height: 6%; */
+  position: absolute;
+  right: 52.01%;
+  left: 5.76%;
+  bottom: 92.0%;
+  top: 1.5%;
+  margin-top: 10px;
+  object-fit: contain;
 }
 
-/* 개별 차트 스타일 */
-.chart {
-    flex: 1;
-    max-width: 33%;
-    padding: 20px;
-    box-sizing: border-box;
-    border: 2px solid #333; /* 어두운 경계선 */
-    border-radius: 10px;
-    background-color: #2a2a40; /* 차트 영역 배경을 어두운 색으로 변경 */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* 그림자 효과 */
+/* 사이드바 메뉴 */
+.top-menu {
+  position: absolute;
+  inset: 0;
+}
+.general {
+  display: flex;
+  flex-direction: column;
+  gap: 39.07px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 202.66px;
+  position: absolute;
+  left: 48.83px;
+  top: 166.03px;
+}
+.tab1 { /*dashboard 탭 영역*/
+  padding: 0px 13.43px 9.77px 0px;
+  display: flex;
+  flex-direction: row;
+  gap: 24.42px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 202.66px;
+  position: relative;
+}
+.icon-element-3 { /*dashboard 탭 아이콘*/
+  flex-shrink: 0;
+  width: 29.3px;
+  height: 29.3px;
+  position: relative;
+  overflow: visible;
+}
+a.dashboard_text { /*dashboard 탭 텍스트*/
+  color: var(--white, #ffffff);
+  text-align: left;
+  font-family: "Poppins-SemiBold", sans-serif;
+  font-size: 17.09166717529297px;
+  font-weight: 600;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-decoration: none; /*링크 형식으로 변경하면서 생긴 밑줄 제거*/
+}
+.tab2 { /*statisitc 탭 영역*/
+  padding: 0px 0px 9.77px 0px;
+  display: flex;
+  flex-direction: row;
+  gap: 24.42px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 202.66px;
+  position: relative;
+} 
+.icon-presention-chart { /*statisitc 탭 아이콘*/
+  flex-shrink: 0;
+  width: 29.3px;
+  height: 29.3px;
+  position: relative;
+  overflow: visible;
+}
+a.statistic_text { /*statisitc 탭 텍스트*/
+  color: var(--text-80, #675aff);
+  text-align: left;
+  font-family: "Poppins", sans-serif;
+  font-size: 16.5px;
+  font-weight: 400;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-decoration: none; /*링크 형식으로 변경하면서 생긴 밑줄 제거*/
 }
 
-/* 예측 메시지 스타일 */
-.prediction-message {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100px;
-    font-size: 18px;
-    color: #999;
-    text-align: center;
+/* a 태그의 hover 시 스타일 */
+a.dashboard:hover, a.statistic:hover {
+  text-decoration: none; /* 마우스 오버 시에도 밑줄이 생기지 않도록 설정 */
 }
 
-/* 프로토콜 차트 컨테이너 스타일 */
-#protocol-chart-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    height: calc(50vh - 40px);
-    background-color: #2a2a40;
-    border: 2px solid #333;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    margin-top: 20px;
-    padding: 20px;
+/* 기본적으로 a 태그에 링크 스타일 제거 */
+a {
+  color: inherit; /* 부모 요소에서 상속받은 색상 유지 */
+  font: inherit; /* 부모 요소에서 상속받은 폰트 유지 */
+  text-decoration: none; /* 밑줄 제거 */
 }
 
-/* 예측 결과 박스 스타일 */
-.prediction-box {
-    margin-top: 20px;
-    padding: 15px;
-    border: 1px solid #444;
-    background-color: #2a2a40;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    color: #f5f5f5;
+/* 기능 */
+.container{
+  height: 100vh;
+  width:calc(100%-313px);
+  margin-left: 313px;
+  display: flex;
+  flex-direction: column;
+}
+/* 헤더 */
+.header {
+  background: var(--white, #ffffff);
+  height: 100px;
+  width: 100%;
+  position: fixed;
+  top:0;
+  left: 313px;
+  align-items: center;
+  padding-left: 35px;
+  z-index:1000;
 }
 
-/* 미디어 쿼리: 화면 크기가 작을 때 차트의 너비 조정 */
-@media (max-width: 768px) {
-    .chart {
-        flex: 1 1 100%;
-        height: 200px;
-    }
-    #protocol-chart-container {
-        height: 200px;
-    }
+/* 헤더 dashboard 텍스트 */
+.dashboard {
+  color: var(--text-100, #1a1b2f);
+  text-align: left;
+  font-family: "Poppins", sans-serif;
+  font-size: 29.299999237060547px;
+  font-weight: 600;
+  position: absolute;
+  left: 35.4px;
+  top: 32.96px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.content{
+  display: grid;
+  padding:30px;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  grid-gap: 20px;
+  height: calc(100vh-100px);
+  margin-top: 70px;
+  margin-bottom: -10px;
+}
+
+.packet-title{
+  grid-column: 1 / 2; 
+  grid-row: 1; 
+  font-family: "Roboto-Medium", sans-serif;
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: 600;
+  margin-top: 0;
+  margin: 0;
+  padding: 0 0 0 5px;
+}
+
+/* 패킷 리스트  */
+.packet-container {
+  grid-column: 1 / 2;
+  grid-row: 2; 
+  background: #f9f9ff;
+  border-radius: 18.31px;
+  height: 500px;
+  width: 750px;
+  /* position: relative; */
+  box-shadow: 0px 0px 0px 0px rgba(0, 0, 96, 0.1),
+    0px 0px 1px 0px rgba(0, 0, 96, 0.1), -1px 1px 1px 0px rgba(0, 0, 96, 0.09),
+    -2px 2px 2px 0px rgba(0, 0, 96, 0.05), -3px 4px 2px 0px rgba(0, 0, 96, 0.01),
+    -4px 6px 2px 0px rgba(0, 0, 96, 0);
+  margin-right: 30px;
+  padding:30px;
+  overflow-y: auto;
+}
+
+#packet-list{
+  font-family: "Roboto-Medium", sans-serif;
+  list-style-type:none;
+  padding-left: 30px;
+  margin: 0;
+}
+
+.flow-title{
+  grid-column: 2 / 3; /* 오른쪽 열을 차지 */
+  grid-row: 1; /* 상단 행에 배치 */
+  font-family: "Roboto-Medium", sans-serif;
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: 600;
+  margin-top: 0;
+  margin: 0;
+  padding: 0 0 0 10px;
+}
+
+.chart-container{
+  grid-column: 2 / 3;
+  grid-row: 2; /* 2번째 행과 3번째 행에 배치 */
+  display: flex;
+  justify-content: space-between;
+  width: 350px;
+  max-width: 100%;
+  height: 250px;
+}
+
+.chart{
+  font-family: 'Poppins', sans-serif;
+  width:40%;
+  max-width:100%;
+}
+
+/* 앱 차트 오른쪽 여백 제거 */
+.chart:last-child {
+  margin-right: 0; /* 마지막 차트의 오른쪽 여백 제거 */
+}
+
+.packet-flow {
+  grid-column: 2/3;
+  grid-row: 3;
+  border: 1px solid rgb(255, 255, 255);
+  height: 220px;
+  display: flex;               /* Flexbox 사용 */
+  justify-content: center;     /* 수평 중앙 정렬 */
+  align-items: center;         /* 수직 중앙 정렬 */
+  margin-top: -250px;
+}
+
+.preds-title{
+  margin-left: 40px;
+  margin-top: -20px;
+  margin-bottom: 5px;
+  font-family: "Roboto-Medium", sans-serif;
+  font-size: 20px;
+  line-height: 30px;
+  font-weight: 600;
+}
+
+.preds {
+  padding:30px;
+  margin-left: 30px;
+  background: #f9f9ff;
+  border-radius: 20px;
+  height: 200px;
+  width: 1550px;
+  position: relative;
+  box-shadow: 0px 0px 0px 0px rgba(0, 0, 96, 0.1),
+    0px 0px 1px 0px rgba(0, 0, 96, 0.1), -1px 1px 1px 0px rgba(0, 0, 96, 0.09),
+    -2px 2px 2px 0px rgba(0, 0, 96, 0.05), -3px 4px 2px 0px rgba(0, 0, 96, 0.01),
+    -4px 6px 2px 0px rgba(0, 0, 96, 0);
+  overflow-y: auto;
+}
+
+.prediction-list{
+  padding: 10px;
+  list-style-type:none;
+  padding-left: 0;
+  margin: 0;
 }
