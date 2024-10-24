@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"components\\\\core\\\\chart.tsx -> react-apexcharts\":{\"id\":\"components\\\\core\\\\chart.tsx -> react-apexcharts\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_react-apexcharts_dist_react-apexcharts_min_js.js\"]}}"
